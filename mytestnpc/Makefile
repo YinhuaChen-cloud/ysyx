@@ -1,25 +1,10 @@
-TOPNAME = ysyx_22050039_top
+TOPNAME = top
 NXDC_FILES = constr/top.nxdc
-VERILOG_INC_PATH ?= $(NPC_HOME)/vinclude
-INC_PATH ?= 
+INC_PATH ?=
 
 VERILATOR = verilator
 VERILATOR_CFLAGS += -MMD --build -cc  \
-				-O3 --x-assign fast --x-initial fast 
-
-ifeq ($(MODE), ASSERT)
-	VERILATOR_CFLAGS += --assert
-else
-	VERILATOR_CFLAGS += --noassert
-endif
-
-ifeq ($(WALL), TRUE)
-	VERILATOR_CFLAGS += -Wall 
-endif
-
-ifeq ($(MYDIFF), TRUE)
-	LDFLAGS += -ldl
-endif
+				-O3 --x-assign fast --x-initial fast --noassert
 
 BUILD_DIR = ./build
 OBJ_DIR = $(BUILD_DIR)/obj_dir
@@ -39,44 +24,22 @@ $(SRC_AUTO_BIND): $(NXDC_FILES)
 # project source
 VSRCS = $(shell find $(abspath ./vsrc) -name "*.v")
 CSRCS = $(shell find $(abspath ./csrc) -name "*.c" -or -name "*.cc" -or -name "*.cpp")
-
-ifeq ($(MAKECMDGOALS), run)
-	CSRCS += $(SRC_AUTO_BIND)
-endif
+CSRCS += $(SRC_AUTO_BIND)
 
 include $(NVBOARD_HOME)/scripts/nvboard.mk
 
-run-env: $(VSRCS) $(CSRCS)
-	@echo "in run-env, debug by cyh CSRCS = $(CSRCS)"
-	@echo "in run-env, debug by cyh VSRCS = $(VSRCS)"
-	@echo "in run-env, debug by cyh VERILATOR_CFLAGS = $(VERILATOR_CFLAGS)"
-	@echo "in run-env, debug by cyh CFLAGS = $(CFLAGS)"
-	@echo "in run-env, debug by cyh NPCFLAGS = $(NPCFLAGS)"
-	@echo "debug by cyh $$^ = $^"
-	@rm -rf $(OBJ_DIR)
-	$(VERILATOR) $(VERILATOR_CFLAGS) \
-		--top-module $(TOPNAME) $^ \
-		$(addprefix -CFLAGS , $(CFLAGS)) $(addprefix -LDFLAGS , $(LDFLAGS)) \
-		--Mdir $(OBJ_DIR) --exe -o $(abspath $(BIN))
-
-sim: run-env 
-	@echo "BIN = $(BIN)"
-	@echo "ARGS = $(ARGS)"
-	@echo "IMG = $(IMG)"
-	$(BIN) $(ARGS) $(IMG)
-# 	verilator -Wall --cc --exe --build --trace $(NPC_HOME)/csrc/main.cpp $(NPC_HOME)/vsrc/top.v
+sim:
+	# @echo "debug by cyh CSRC = $(CSRC)"
+	# @echo "debug by cyh OBJS = $(OBJS)"
+	# echo "debug by cyh VSRC = $(VSRC)"
+	verilator -Wall --cc --exe --build --trace $(NPC_HOME)/csrc/main.cpp $(NPC_HOME)/vsrc/top.v
+	./obj_dir/Vtop
 	$(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!!
-	cd ${NPC_HOME}/..; cscope -b -R;
-
-gdb: run-env
-	$(call git_commit, "gdb NEMU")
-	gdb -s $(BIN) --args $(BIN) $(ARGS) $(IMG)
+	@echo "Write this Makefile by your self."
 
 # rules for verilator
 INCFLAGS = $(addprefix -I, $(INC_PATH))
-VERILOG_INCFLAGS = $(addprefix -I, $(VERILOG_INC_PATH))
-VERILATOR_CFLAGS += $(VERILOG_INCFLAGS)
-CFLAGS += $(INCFLAGS) -ggdb3 -O0 -Wall -Werror -DTOP_NAME="\"V$(TOPNAME)\"" 
+CFLAGS += $(INCFLAGS) -DTOP_NAME="\"V$(TOPNAME)\""
 LDFLAGS += -lSDL2 -lSDL2_image
 
 # build/top: 
@@ -101,6 +64,6 @@ run: $(BIN)
 clean:
 	rm -rf ./logs ./obj_dir $(BUILD_DIR)
 
-.PHONY: clean sim gdb run-env
+.PHONY: clean
 
 include ../Makefile
